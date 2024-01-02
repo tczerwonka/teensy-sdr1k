@@ -100,8 +100,8 @@
 	static const int ATU_CTL	= 7;
 	
 	// Control and data line pins for RFE serial decoders
-	static const int SER		= 0x01;
-	static const int SCK		= 0x02;
+	static const int RFE_SER		= 0x01;
+	static const int RFE_SCK		= 0x02;
 	static const int SCLR_NOT	= 0x04;
 	static const int DCDR_NE	= 0x20;
 	
