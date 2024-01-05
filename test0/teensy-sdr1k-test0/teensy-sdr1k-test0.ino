@@ -35,15 +35,42 @@ void setup() {
   //PCF8575_LIB_VERSION:	0.2.1
   //#bin:	110111111111111
   //PI7 PI6 PI5...PI0 PO7...PO0
+
+  //power on test
+  PowerOn();
 }
 
 
 
 void loop() {
-  Serial.print("S3/PI6:");
-  Serial.println(PCF.readButton(S3));
-  delay(1000);
+  //Serial.print("S3/PI6:");
+  //Serial.println(PCF.readButton(S3));
+  //delay(1000);
 }
+
+
+//==============================================================================
+// PowerOn
+//  copied from hardware_v2.cs 
+//==============================================================================
+void PowerOn() {
+  ResetDDS();
+  //DDSTuningWord = dds_tuning_word;
+  //dds_tuning_word has an accessor function in hardware_v2 but looks to call 
+  //dds_write -- so maybe by just setting the dds_tuning_word -- frequency is changed.
+  //well -- now that will be interesting...comment out for now
+
+  //pio_ic1.ForceUpdate();
+  //pio_ic3.ForceUpdate();
+
+  //rfe_ic7.ForceUpdate();
+  //rfe_ic9.ForceUpdate();
+  //rfe_ic10.ForceUpdate();
+  //rfe_ic11.ForceUpdate();
+  //UpdateHardware = true;
+}
+
+
 
 
 
@@ -51,12 +78,28 @@ void loop() {
 // ResetDDS
 // first thing called under PowerOn() -- so I guess...
 // mostly copied from hardware_v2.cs
-//   Looks like I need:
+//   does the following:
+//   addr 0x08 is PIO_IC8 -- 8 lines control
+//   addr 0x0F is PIO_IC11 -- 8 lines frequency
+//     IC8/IC11 both 74LCX574S connected to the 16 lines on the DDS
+//      addr-data
+//outport: 0x03-0xC0/11000000 - DDSRESET | DDSWRB
+//outport: 0x03-0x40/01000000 - DDSWRB
+//   DDSWrite COMP_PD, 0x1D
+//     outport: 0x0F-0x10/00010000 -- set up data bits
+//     outport: 0x03-0x5D/01011101 -- set up address bits with WRB high
+//     outport: 0x03-0x1D/00011101 -- send write command with WRB low
+//     outport: 0x03-0x5D/01011101 -- Return WRB high
+//   DDSWrite BYPASS_PLL, 0x1E
+//     outport: 0x0F-0x20/00100000 
+//     outport: 0x03-0x5E/01011110
+//     outport: 0x03-0x1E/00011110
+//     outport: 0x03-0x5E/01011110
 //==============================================================================
 void ResetDDS() {
-
+  int lpt_addr; //whatever - remove later
 	LatchRegister(lpt_addr, PIO_IC8, DDSRESET | DDSWRB);    // Reset the DDS chip
-	LatchRegister(lpt_addr, PIO_IC8, DDSWRB);                                       // Leave WRB high
+	LatchRegister(lpt_addr, PIO_IC8, DDSWRB);         
 	DDSWrite(COMP_PD, 0x1D);                //Power down comparator
 	if(pll_mult == 1) {
 		DDSWrite(BYPASS_PLL, 0x1E);
@@ -73,16 +116,20 @@ void ResetDDS() {
 // LatchRegister
 //==============================================================================
 void LatchRegister(ushort lpt, byte addr, byte data) {
-	Parallel.outport(lpt, data);
-	Parallel.outport((ushort)(lpt+2), addr);
-	Parallel.outport((ushort)(lpt+2), PIO_NONE);
-}
-//              public static void outport(ushort addr, byte val)
-//              {
-//                      Debug.WriteLine("outport: "+addr.ToString("X")+"-"+val.ToString("X"));
-//                      outport_dll(addr, val);
-//              }
+  Serial.print("outport: 0x0");
+  Serial.print(addr,HEX);
+  Serial.print("-0x");
+  Serial.println(data,HEX);
 
+	//Parallel.outport(lpt, data);
+	//Parallel.outport((ushort)(lpt+2), addr);
+	//Parallel.outport((ushort)(lpt+2), PIO_NONE);
+
+  //              public static void outport(ushort addr, byte val) 
+  //              {
+  //                      outport_dll(addr, val);
+  //              }
+}
 
 
 
@@ -91,6 +138,7 @@ void LatchRegister(ushort lpt, byte addr, byte data) {
 // DDSWrite
 //==============================================================================
 void DDSWrite(byte data, byte addr) {
+  int lpt_addr = 0; //remove later
 	//Set up data bits
 	LatchRegister(lpt_addr, PIO_IC11, data);
 	//Set up address bits with WRB high
